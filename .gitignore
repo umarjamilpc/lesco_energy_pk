@@ -1,0 +1,14 @@
+# Local / non-HACS content in this workspace (do not publish)
+venv/
+ha_lesco/
+frida/
+tools/
+.cursor/
+__pycache__/
+*.pyc
+*.pcap
+.env
+*.ini
+scan_*.py
+find_*.py
+deep_*.py

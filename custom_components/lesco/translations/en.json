@@ -1,0 +1,20 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "LESCO Power Smart & CCMS",
+        "description": "Enter your Power Smart credentials and consumer reference. A JWT is obtained automatically on each update; you do not need to paste a token.",
+        "data": {
+          "phone": "Phone number (contact number)",
+          "password": "Password",
+          "reference": "Reference number (full ref; CCMS uses first 14 digits)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Could not reach the Power Smart server.",
+      "invalid_auth": "Sign-in failed. Check phone number and password.",
+      "unknown": "Unexpected error during sign-in."
+    }
+  }
+}
