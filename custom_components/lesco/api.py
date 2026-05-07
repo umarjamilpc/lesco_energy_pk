@@ -100,6 +100,35 @@ class LescoApi:
                 )
             return await resp.json(content_type=None)
 
+    async def async_get_daily_consumption(
+        self, token: str, reference: str
+    ) -> dict[str, Any] | list[Any] | None:
+        """Last ~7 days import/export per day (Smart View). Same path pattern as monthly."""
+        url = f"{POWERSMART_BASE}/getHistory/dailyConsumption"
+        ref = normalize_reference(reference)
+        headers = {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "Authorization": f"Bearer {token}",
+        }
+        try:
+            async with self._session.post(
+                url,
+                json={"refNo": ref},
+                headers=headers,
+                timeout=aiohttp.ClientTimeout(total=60),
+            ) as resp:
+                if resp.status != 200:
+                    text = await resp.text()
+                    _LOGGER.debug(
+                        "dailyConsumption HTTP %s: %s", resp.status, text[:400]
+                    )
+                    return None
+                return await resp.json(content_type=None)
+        except aiohttp.ClientError as err:
+            _LOGGER.debug("dailyConsumption request failed: %s", err)
+            return None
+
     async def async_get_ccms_bill(self, reference: str) -> dict[str, Any]:
         ref14 = ccms_reference_14(reference)
         url = f"{CCMS_BILL_URL}?reference={ref14}"
