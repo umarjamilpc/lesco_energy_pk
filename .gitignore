@@ -12,3 +12,20 @@ __pycache__/
 scan_*.py
 find_*.py
 deep_*.py
+# Artifacts (keep HACS-only commits safe)
+*.apk
+*.idsig
+*.pdf
+*.jpeg
+*.jpg
+apk_extract/
+apk_extract_rn/
+*_home.html
+*_login.html
+*_verifycustomer.html
+bill_json.txt
+pcap_json_scan.txt
+reassemble_out.txt
+extract_apk_urls.py
+parse_pcap.py
+reassemble_pitc_flows.py
