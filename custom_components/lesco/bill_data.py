@@ -46,9 +46,6 @@ def flatten_basic_info(bill_root: dict[str, Any]) -> dict[str, Any]:
         v = bi.get(src)
         if v is not None:
             out[key] = str(v)
-    # Alias: totCurCons is *net* billed units for net metering, not "total import".
-    if "tot_cur_cons" in out:
-        out["billed_net_units"] = out["tot_cur_cons"]
     return out
 
 
