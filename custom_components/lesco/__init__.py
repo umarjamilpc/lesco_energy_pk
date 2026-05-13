@@ -1,4 +1,4 @@
-"""LESCO Power Smart + CCMS custom integration."""
+"""LESCO CCMS bill custom integration."""
 
 from __future__ import annotations
 
@@ -10,12 +10,28 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import LescoApi
-from .const import DOMAIN
+from .const import CONF_REFERENCE, DOMAIN
 from .coordinator import LescoCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
 PLATFORMS: list[Platform] = [Platform.SENSOR]
+
+
+async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """v1 had phone/password/reference; v2 keeps reference only."""
+    if entry.version >= 2:
+        return True
+    ref = (entry.data or {}).get(CONF_REFERENCE)
+    if not ref or not str(ref).strip():
+        _LOGGER.error("Migration failed: missing reference in config entry %s", entry.entry_id)
+        return False
+    hass.config_entries.async_update_entry(
+        entry,
+        data={CONF_REFERENCE: str(ref).strip()},
+        version=2,
+    )
+    return True
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

@@ -1,4 +1,4 @@
-"""Parse CCMS bill JSON: meters, history, basic charges (from bill_json / web bill shape)."""
+"""Parse CCMS bill JSON: meters, history, basic charges."""
 
 from __future__ import annotations
 
@@ -114,56 +114,3 @@ def billing_history_json(entries: list[dict[str, str]], max_len: int = 12000) ->
     if len(s) > max_len:
         return s[: max_len - 20] + "…(truncated)"
     return s
-
-
-def summarize_powersmart_daily(raw: dict[str, Any] | list[Any] | None) -> dict[str, Any]:
-    """Best-effort parse of dailyConsumption response; keys only if recognized."""
-    out: dict[str, Any] = {}
-    if raw is None:
-        return out
-    rows: list[Any] = []
-    if isinstance(raw, list):
-        rows = raw
-    elif isinstance(raw, dict):
-        for k in ("data", "dailyConsumption", "list", "result", "records"):
-            v = raw.get(k)
-            if isinstance(v, list):
-                rows = v
-                break
-    if not rows:
-        return out
-    last = rows[-1]
-    if not isinstance(last, dict):
-        return out
-    # Common camelCase / snake guesses from mobile APIs
-    def pick(d: dict[str, Any], *names: str) -> Any:
-        for n in names:
-            if n in d and d[n] is not None:
-                return d[n]
-        return None
-
-    def to_float(v: Any) -> float | None:
-        if v is None or v == "" or v == "-":
-            return None
-        try:
-            return float(str(v).replace(",", ""))
-        except (TypeError, ValueError):
-            return None
-
-    out["daily_last_row_json"] = json.dumps(last, ensure_ascii=False)[:4000]
-    out["daily_imp_peak"] = to_float(
-        pick(last, "impPk", "imp_pk", "importPeak", "import_peak", "impPeak")
-    )
-    out["daily_imp_offpeak"] = to_float(
-        pick(last, "impOp", "imp_op", "importOffPeak", "import_off_peak", "impOffPeak")
-    )
-    out["daily_exp_peak"] = to_float(
-        pick(last, "expPk", "exp_pk", "exportPeak", "export_peak", "expPeak")
-    )
-    out["daily_exp_offpeak"] = to_float(
-        pick(last, "expOp", "exp_op", "exportOffPeak", "export_off_peak", "expOffPeak")
-    )
-    day = pick(last, "date", "billDate", "day", "readDate", "meterReadDate", "label")
-    if day is not None:
-        out["daily_last_date"] = str(day)
-    return out

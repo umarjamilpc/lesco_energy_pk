@@ -1,6 +1,6 @@
 {
   "domain": "lesco",
-  "name": "LESCO Power Smart & CCMS",
+  "name": "LESCO CCMS Bill",
   "homeassistant": "2024.1.0",
   "codeowners": ["@umarjamilpc"],
   "config_flow": true,
@@ -10,5 +10,5 @@
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/umarjamilpc/lesco_energy_pk/issues",
   "requirements": ["aiohttp>=3.9.0"],
-  "version": "1.2.0"
+  "version": "3.0.0"
 }

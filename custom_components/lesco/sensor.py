@@ -1,4 +1,4 @@
-"""Sensors: CCMS bill, meter readings, import/export, billing history, Power Smart daily."""
+"""Sensors: CCMS bill, meters, import/export, billing history."""
 
 from __future__ import annotations
 
@@ -11,74 +11,41 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .const import CONF_REFERENCE, DOMAIN
 from .coordinator import LescoCoordinator
 
-# Large / redundant keys omitted from Overview attributes (use dedicated sensors).
-# Keep overview readable; full table lives on the billing_history sensor.
 _OVERVIEW_SKIP_ATTRS = frozenset({"billing_history_json", "billing_history_entries"})
 
-# Meter register keys (CCMS cumulative reads + billed delta per register).
 _METER_KEYS: list[tuple[str, str, str | None, int]] = [
-    ("meter_import_offpeak_previous_kwh", "Import off-peak previous reading", "kWh", 3),
-    ("meter_import_offpeak_present_kwh", "Import off-peak present reading", "kWh", 3),
-    ("meter_import_offpeak_billed_kwh", "Import off-peak billed units", "kWh", 3),
-    ("meter_import_peak_previous_kwh", "Import peak previous reading", "kWh", 3),
-    ("meter_import_peak_present_kwh", "Import peak present reading", "kWh", 3),
-    ("meter_import_peak_billed_kwh", "Import peak billed units", "kWh", 3),
-    ("meter_export_offpeak_previous_kwh", "Export off-peak previous reading", "kWh", 3),
-    ("meter_export_offpeak_present_kwh", "Export off-peak present reading", "kWh", 3),
-    ("meter_export_offpeak_billed_kwh", "Export off-peak billed units", "kWh", 3),
-    ("meter_export_peak_previous_kwh", "Export peak previous reading", "kWh", 3),
-    ("meter_export_peak_present_kwh", "Export peak present reading", "kWh", 3),
-    ("meter_export_peak_billed_kwh", "Export peak billed units", "kWh", 3),
-]
-
-_DAILY_KEYS: list[tuple[str, str]] = [
-    ("daily_imp_peak", "Power Smart daily import peak (last row)"),
-    ("daily_imp_offpeak", "Power Smart daily import off-peak (last row)"),
-    ("daily_exp_peak", "Power Smart daily export peak (last row)"),
-    ("daily_exp_offpeak", "Power Smart daily export off-peak (last row)"),
+    ("meter_import_offpeak_previous_kwh", "Imp off prev", "kWh", 3),
+    ("meter_import_offpeak_present_kwh", "Imp off now", "kWh", 3),
+    ("meter_import_offpeak_billed_kwh", "Imp off Δ", "kWh", 3),
+    ("meter_import_peak_previous_kwh", "Imp pk prev", "kWh", 3),
+    ("meter_import_peak_present_kwh", "Imp pk now", "kWh", 3),
+    ("meter_import_peak_billed_kwh", "Imp pk Δ", "kWh", 3),
+    ("meter_export_offpeak_previous_kwh", "Exp off prev", "kWh", 3),
+    ("meter_export_offpeak_present_kwh", "Exp off now", "kWh", 3),
+    ("meter_export_offpeak_billed_kwh", "Exp off Δ", "kWh", 3),
+    ("meter_export_peak_previous_kwh", "Exp pk prev", "kWh", 3),
+    ("meter_export_peak_present_kwh", "Exp pk now", "kWh", 3),
+    ("meter_export_peak_billed_kwh", "Exp pk Δ", "kWh", 3),
 ]
 
 
 def _build_sensor_descriptions() -> tuple[SensorEntityDescription, ...]:
     out: list[SensorEntityDescription] = [
-        SensorEntityDescription(key="overview", name="Overview"),
-        SensorEntityDescription(
-            key="billing_history",
-            name="Billing history (latest month)",
-        ),
-        SensorEntityDescription(
-            key="billing_history_count",
-            name="Billing history rows",
-        ),
-        SensorEntityDescription(
-            key="daily_last_date",
-            name="Power Smart daily last date",
-        ),
+        SensorEntityDescription(key="overview", name="CCMS status"),
+        SensorEntityDescription(key="billing_history", name="Hist month"),
+        SensorEntityDescription(key="billing_history_count", name="Hist rows"),
     ]
     for key, name, unit, prec in [
-        ("net_bill", "Net bill", "PKR", 0),
-        ("curr_amount_due", "Current amount due", "PKR", 0),
-        (
-            "tot_cur_cons",
-            "Billed net units (CCMS)",
-            "kWh",
-            3,
-        ),
-        ("imp_peak_units", "Import peak units (bill month)", "kWh", 3),
-        ("imp_offpeak_units", "Import off-peak units (bill month)", "kWh", 3),
-        ("exp_peak_units", "Export peak units (bill month)", "kWh", 3),
-        ("exp_offpeak_units", "Export off-peak units (bill month)", "kWh", 3),
-        ("hist_latest_units_kwh", "Latest history month units", "kWh", 3),
-        ("hist_latest_payment_pkr", "Latest history month payment", "PKR", 0),
+        ("net_bill", "Net PKR", "PKR", 0),
+        ("curr_amount_due", "Due PKR", "PKR", 0),
+        ("tot_cur_cons", "Net kWh", "kWh", 3),
+        ("imp_peak_units", "Imp pk kWh", "kWh", 3),
+        ("imp_offpeak_units", "Imp off kWh", "kWh", 3),
+        ("exp_peak_units", "Exp pk kWh", "kWh", 3),
+        ("exp_offpeak_units", "Exp off kWh", "kWh", 3),
+        ("hist_latest_units_kwh", "Hist kWh", "kWh", 3),
+        ("hist_latest_payment_pkr", "Hist pay PKR", "PKR", 0),
     ]:
-        kwargs: dict = {
-            "key": key,
-            "name": name,
-            "native_unit_of_measurement": unit,
-            "suggested_display_precision": prec,
-        }
-        out.append(SensorEntityDescription(**kwargs))
-    for key, name, unit, prec in _METER_KEYS:
         out.append(
             SensorEntityDescription(
                 key=key,
@@ -87,13 +54,13 @@ def _build_sensor_descriptions() -> tuple[SensorEntityDescription, ...]:
                 suggested_display_precision=prec,
             )
         )
-    for key, name in _DAILY_KEYS:
+    for key, name, unit, prec in _METER_KEYS:
         out.append(
             SensorEntityDescription(
                 key=key,
                 name=name,
-                native_unit_of_measurement="kWh",
-                suggested_display_precision=3,
+                native_unit_of_measurement=unit,
+                suggested_display_precision=prec,
             )
         )
     return tuple(out)
@@ -147,7 +114,7 @@ class LescoSensor(CoordinatorEntity[LescoCoordinator], SensorEntity):
             identifiers={(DOMAIN, coordinator.config_entry.entry_id)},
             name=dev_name,
             manufacturer="PITC",
-            model="Power Smart + CCMS",
+            model="CCMS bill",
         )
 
     @property
@@ -174,10 +141,6 @@ class LescoSensor(CoordinatorEntity[LescoCoordinator], SensorEntity):
             except (TypeError, ValueError):
                 return None
 
-        if key == "daily_last_date":
-            v = data.get("daily_last_date")
-            return str(v) if v else None
-
         raw = data.get(key)
         if raw is None or raw == "":
             return None
@@ -185,7 +148,7 @@ class LescoSensor(CoordinatorEntity[LescoCoordinator], SensorEntity):
 
     @property
     def extra_state_attributes(self) -> dict:
-        """Overview: bill + API context. Billing history: full table."""
+        """Overview: bill context. Billing history: full table."""
         if not self.coordinator.data:
             return {}
         data = self.coordinator.data
@@ -205,8 +168,5 @@ class LescoSensor(CoordinatorEntity[LescoCoordinator], SensorEntity):
                 "entries": data.get("billing_history_entries", []),
                 "history_json": data.get("billing_history_json", ""),
             }
-
-        if key == "daily_last_date":
-            return {"last_row_json": data.get("daily_last_row_json")}
 
         return {}

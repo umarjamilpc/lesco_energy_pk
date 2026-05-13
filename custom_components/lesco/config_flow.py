@@ -1,4 +1,4 @@
-"""Config flow: phone, password, reference — validate via Power Smart sign-in."""
+"""Config flow: reference only — validate via CCMS bill GET."""
 
 from __future__ import annotations
 
@@ -11,65 +11,68 @@ import voluptuous as vol
 from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .api import LescoApi
-from .const import CONF_PASSWORD, CONF_PHONE, CONF_REFERENCE, DOMAIN
+from .api import LescoApi, ccms_reference_14
+from .const import CONF_REFERENCE, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
 STEP_USER_DATA_SCHEMA = vol.Schema(
     {
-        vol.Required(CONF_PHONE): str,
-        vol.Required(CONF_PASSWORD): str,
         vol.Required(CONF_REFERENCE): str,
     }
 )
 
 
+def _ccms_bill_looks_valid(body: dict[str, Any]) -> bool:
+    """True if JSON looks like a CCMS bill payload."""
+    if not isinstance(body.get("bill"), dict):
+        return False
+    bi = body["bill"].get("basicInfo")
+    return isinstance(bi, dict)
+
+
 class LescoConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle UI flow."""
 
-    VERSION = 1
+    VERSION = 2
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         errors: dict[str, str] = {}
         if user_input is not None:
-            session = async_get_clientsession(self.hass)
-            api = LescoApi(session)
+            ref = user_input[CONF_REFERENCE].strip()
             try:
-                token = await api.async_sign_in(
-                    user_input[CONF_PHONE], user_input[CONF_PASSWORD]
-                )
-                if not token or not str(token).strip():
-                    errors["base"] = "invalid_auth"
-            except aiohttp.ClientResponseError as err:
-                if err.status in (401, 403, 400):
-                    errors["base"] = "invalid_auth"
-                else:
-                    _LOGGER.exception("Sign-in HTTP error")
+                ccms_reference_14(ref)
+            except ValueError:
+                errors["base"] = "invalid_reference"
+            else:
+                session = async_get_clientsession(self.hass)
+                api = LescoApi(session)
+                try:
+                    body = await api.async_get_ccms_bill(ref)
+                except aiohttp.ClientResponseError as err:
+                    if err.status in (400, 404, 422):
+                        errors["base"] = "invalid_reference"
+                    else:
+                        _LOGGER.exception("CCMS HTTP error")
+                        errors["base"] = "cannot_connect"
+                except aiohttp.ClientError:
+                    _LOGGER.exception("CCMS connection error")
                     errors["base"] = "cannot_connect"
-            except KeyError:
-                errors["base"] = "invalid_auth"
-            except aiohttp.ClientError:
-                _LOGGER.exception("Sign-in connection error")
-                errors["base"] = "cannot_connect"
-            except Exception:
-                _LOGGER.exception("Sign-in failed")
-                errors["base"] = "unknown"
-
-            if not errors:
-                data = {
-                    CONF_PHONE: user_input[CONF_PHONE].strip(),
-                    CONF_PASSWORD: user_input[CONF_PASSWORD].strip(),
-                    CONF_REFERENCE: user_input[CONF_REFERENCE].strip(),
-                }
-                ref = data[CONF_REFERENCE]
-                phone = data[CONF_PHONE]
-                await self.async_set_unique_id(f"{phone}_{ref}".lower().replace(" ", ""))
-                self._abort_if_unique_id_configured()
-                title = f"LESCO {ref[:20]}"
-                return self.async_create_entry(title=title, data=data)
+                except Exception:
+                    _LOGGER.exception("CCMS fetch failed")
+                    errors["base"] = "unknown"
+                else:
+                    if not _ccms_bill_looks_valid(body if isinstance(body, dict) else {}):
+                        errors["base"] = "invalid_reference"
+                    else:
+                        data = {CONF_REFERENCE: ref}
+                        uid = ccms_reference_14(ref)
+                        await self.async_set_unique_id(uid)
+                        self._abort_if_unique_id_configured()
+                        title = f"LESCO {uid}"
+                        return self.async_create_entry(title=title, data=data)
 
         return self.async_show_form(
             step_id="user",

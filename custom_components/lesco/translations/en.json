@@ -2,19 +2,17 @@
   "config": {
     "step": {
       "user": {
-        "title": "LESCO Power Smart & CCMS",
-        "description": "Enter your Power Smart credentials and consumer reference. A JWT is obtained automatically on each update; you do not need to paste a token.",
+        "title": "LESCO CCMS bill",
+        "description": "Enter your consumer reference number (at least 14 digits; trailing letter e.g. U is optional). Data is read from the public CCMS bill API only.",
         "data": {
-          "phone": "Phone number (contact number)",
-          "password": "Password",
-          "reference": "Reference number (full ref; CCMS uses first 14 digits)"
+          "reference": "Reference number"
         }
       }
     },
     "error": {
-      "cannot_connect": "Could not reach the Power Smart server.",
-      "invalid_auth": "Sign-in failed. Check phone number and password.",
-      "unknown": "Unexpected error during sign-in."
+      "cannot_connect": "Could not reach CCMS or unexpected HTTP error.",
+      "invalid_reference": "Reference not found or invalid — check digits and try again.",
+      "unknown": "Unexpected error while loading the bill."
     }
   }
 }
