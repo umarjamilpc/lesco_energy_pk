@@ -13,6 +13,7 @@ from .api import LescoApi, normalize_reference
 from .bill_data import (
     billing_history_json,
     flatten_basic_info,
+    format_due_date_display,
     parse_billing_history,
     parse_meters_info,
 )
@@ -60,6 +61,10 @@ class LescoCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
         ccms_dict = ccms if isinstance(ccms, dict) else {}
         bill_flat = flatten_basic_info(ccms_dict)
+        if "bill_due_date" in bill_flat:
+            formatted = format_due_date_display(bill_flat["bill_due_date"])
+            if formatted:
+                bill_flat["bill_due_date"] = formatted
         meters = parse_meters_info(ccms_dict)
         hist_rows = parse_billing_history(ccms_dict)
 

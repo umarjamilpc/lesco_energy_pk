@@ -3,7 +3,40 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime
 from typing import Any
+
+_MONTH_ABBR = (
+    "JAN",
+    "FEB",
+    "MAR",
+    "APR",
+    "MAY",
+    "JUN",
+    "JUL",
+    "AUG",
+    "SEP",
+    "OCT",
+    "NOV",
+    "DEC",
+)
+
+
+def format_due_date_display(raw: str | None) -> str | None:
+    """CCMS billDueDate (often ISO) -> '29 APR 26'; unknown shapes uppercased."""
+    if raw is None:
+        return None
+    s = str(raw).strip()
+    if not s or s.lower() == "null":
+        return None
+    date_part = s[:10] if len(s) >= 10 and s[4:5] == "-" else None
+    if date_part and len(date_part) == 10:
+        try:
+            dt = datetime.strptime(date_part, "%Y-%m-%d")
+            return f"{dt.day} {_MONTH_ABBR[dt.month - 1]} {str(dt.year)[-2:]}"
+        except ValueError:
+            pass
+    return s.upper()
 
 # Order matches LESCO web bill / metersInfo rows for net-meter domestic split.
 _METER_ROLES = (
