@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from datetime import datetime
 from typing import Any
 
@@ -22,21 +23,35 @@ _MONTH_ABBR = (
 )
 
 
-def format_due_date_display(raw: str | None) -> str | None:
-    """CCMS billDueDate (often ISO) -> '29 APR 26'; unknown shapes uppercased."""
+def format_bill_date_display(raw: str | None) -> str | None:
+    """CCMS ISO or M/D/YYYY dates -> '21 APR 26'; unknown shapes uppercased."""
     if raw is None:
         return None
     s = str(raw).strip()
     if not s or s.lower() == "null":
         return None
-    date_part = s[:10] if len(s) >= 10 and s[4:5] == "-" else None
-    if date_part and len(date_part) == 10:
+    # ISO date / datetime prefix YYYY-MM-DD
+    if len(s) >= 10 and s[4:5] == "-" and s[7:8] == "-":
+        date_part = s[:10]
         try:
             dt = datetime.strptime(date_part, "%Y-%m-%d")
             return f"{dt.day} {_MONTH_ABBR[dt.month - 1]} {str(dt.year)[-2:]}"
         except ValueError:
             pass
+    # US-style M/D/YYYY (common in CCMS .NET fields)
+    m = re.match(r"^(\d{1,2})/(\d{1,2})/(\d{4})", s)
+    if m:
+        try:
+            mo, day, y = int(m.group(1)), int(m.group(2)), int(m.group(3))
+            dt = datetime(y, mo, day)
+            return f"{dt.day} {_MONTH_ABBR[dt.month - 1]} {str(dt.year)[-2:]}"
+        except ValueError:
+            pass
     return s.upper()
+
+
+# Backwards-compatible name
+format_due_date_display = format_bill_date_display
 
 # Order matches LESCO web bill / metersInfo rows for net-meter domestic split.
 _METER_ROLES = (
