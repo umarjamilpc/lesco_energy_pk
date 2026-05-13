@@ -1,4 +1,4 @@
-"""Sensors: CCMS bill, meters, import/export, billing history."""
+"""Sensors: CCMS bill, meters, import/export, billing history (per ha_sensor.docx)."""
 
 from __future__ import annotations
 
@@ -13,38 +13,36 @@ from .coordinator import LescoCoordinator
 
 _OVERVIEW_SKIP_ATTRS = frozenset({"billing_history_json", "billing_history_entries"})
 
+# String state (not kWh / PKR).
+_STRING_VALUE_KEYS = frozenset({"bill_due_date", "meter_read_date", "issue_date"})
+
 _METER_KEYS: list[tuple[str, str, str | None, int]] = [
-    ("meter_import_offpeak_previous_kwh", "Imp off prev", "kWh", 3),
-    ("meter_import_offpeak_present_kwh", "Imp off now", "kWh", 3),
-    ("meter_import_offpeak_billed_kwh", "Imp off Δ", "kWh", 3),
-    ("meter_import_peak_previous_kwh", "Imp pk prev", "kWh", 3),
-    ("meter_import_peak_present_kwh", "Imp pk now", "kWh", 3),
-    ("meter_import_peak_billed_kwh", "Imp pk Δ", "kWh", 3),
-    ("meter_export_offpeak_previous_kwh", "Exp off prev", "kWh", 3),
-    ("meter_export_offpeak_present_kwh", "Exp off now", "kWh", 3),
-    ("meter_export_offpeak_billed_kwh", "Exp off Δ", "kWh", 3),
-    ("meter_export_peak_previous_kwh", "Exp pk prev", "kWh", 3),
-    ("meter_export_peak_present_kwh", "Exp pk now", "kWh", 3),
-    ("meter_export_peak_billed_kwh", "Exp pk Δ", "kWh", 3),
+    ("meter_import_offpeak_previous_kwh", "PREVIOUS IMP(O) UNITS", "kWh", 3),
+    ("meter_import_offpeak_present_kwh", "PRESENT IMP(O) UNITS", "kWh", 3),
+    ("meter_import_peak_previous_kwh", "PREVIOUS IMP(P) UNITS", "kWh", 3),
+    ("meter_import_peak_present_kwh", "PRESENT IMP(P) UNITS", "kWh", 3),
+    ("meter_export_offpeak_previous_kwh", "PREVIOUS EXP(O) UNITS", "kWh", 3),
+    ("meter_export_offpeak_present_kwh", "PRESENT EXP(O) UNITS", "kWh", 3),
+    ("meter_export_peak_previous_kwh", "PREVIOUS EXP(P) UNITS", "kWh", 3),
+    ("meter_export_peak_present_kwh", "PRESENT EXP(P) UNITS", "kWh", 3),
 ]
 
 
 def _build_sensor_descriptions() -> tuple[SensorEntityDescription, ...]:
     out: list[SensorEntityDescription] = [
-        SensorEntityDescription(key="overview", name="CCMS status"),
-        SensorEntityDescription(key="billing_history", name="Hist month"),
-        SensorEntityDescription(key="billing_history_count", name="Hist rows"),
+        SensorEntityDescription(key="overview", name="CCMS STATUS"),
+        SensorEntityDescription(key="billing_history", name="LAST BILLING MONTH"),
+        SensorEntityDescription(key="bill_due_date", name="DUE DATE"),
+        SensorEntityDescription(key="meter_read_date", name="READING DATE"),
+        SensorEntityDescription(key="issue_date", name="ISSUE DATE"),
     ]
     for key, name, unit, prec in [
-        ("net_bill", "Net PKR", "PKR", 0),
-        ("curr_amount_due", "Due PKR", "PKR", 0),
-        ("tot_cur_cons", "Net kWh", "kWh", 3),
-        ("imp_peak_units", "Imp pk kWh", "kWh", 3),
-        ("imp_offpeak_units", "Imp off kWh", "kWh", 3),
-        ("exp_peak_units", "Exp pk kWh", "kWh", 3),
-        ("exp_offpeak_units", "Exp off kWh", "kWh", 3),
-        ("hist_latest_units_kwh", "Hist kWh", "kWh", 3),
-        ("hist_latest_payment_pkr", "Hist pay PKR", "PKR", 0),
+        ("hist_latest_units_kwh", "REMAINING UNITS", "kWh", 3),
+        ("hist_latest_payment_pkr", "LAST BILLING MONTH COST", "PKR", 0),
+        ("imp_offpeak_units", "CURRENT IMP(O) UNITS", "kWh", 3),
+        ("imp_peak_units", "CURRENT IMP(P) UNITS", "kWh", 3),
+        ("exp_offpeak_units", "CURRENT EXP(O) UNITS", "kWh", 3),
+        ("exp_peak_units", "CURRENT EXP(P) UNITS", "kWh", 3),
     ]:
         out.append(
             SensorEntityDescription(
@@ -126,20 +124,17 @@ class LescoSensor(CoordinatorEntity[LescoCoordinator], SensorEntity):
         key = self.entity_description.key
 
         if key == "overview":
-            return "ok" if self.coordinator.last_update_success else "error"
+            return "OK" if self.coordinator.last_update_success else "ERROR"
 
         if key == "billing_history":
             m = data.get("hist_latest_month")
-            return str(m) if m else None
+            return str(m).upper() if m else None
 
-        if key == "billing_history_count":
-            n = data.get("billing_history_count")
-            if n is None:
+        if key in _STRING_VALUE_KEYS:
+            raw = data.get(key)
+            if raw is None or str(raw).strip() == "":
                 return None
-            try:
-                return int(n)
-            except (TypeError, ValueError):
-                return None
+            return str(raw).strip()
 
         raw = data.get(key)
         if raw is None or raw == "":
@@ -148,7 +143,7 @@ class LescoSensor(CoordinatorEntity[LescoCoordinator], SensorEntity):
 
     @property
     def extra_state_attributes(self) -> dict:
-        """Overview: bill context. Billing history: full table."""
+        """Overview: bill context. LAST BILLING MONTH: full history table."""
         if not self.coordinator.data:
             return {}
         data = self.coordinator.data

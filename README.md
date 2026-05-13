@@ -9,12 +9,14 @@ Home Assistant custom integration that reads the **public CCMS web bill JSON** f
 3. **Settings → Devices & services → Add integration → LESCO CCMS Bill**.
 4. Enter your **reference number** (CCMS uses the first **14 digits**).
 
-## Entities (short names)
+## Entities (UPPERCASE names, `ha_sensor.docx`)
 
-- **CCMS status** — `ok` / `error`; attributes hold bill fields (consumer, dates, tariff, etc.).
-- **Net PKR**, **Due PKR**, **Net kWh** (billed net units for the period), **Imp/Exp pk/off kWh** for the bill month.
-- **Hist month**, **Hist rows**, **Hist kWh**, **Hist pay PKR** — billing history summary.
-- Twelve **meter** sensors: `Imp off prev/now/Δ`, `Imp pk …`, `Exp off …`, `Exp pk …` (cumulative reads and billed delta per register).
+- **CCMS STATUS** — `OK` / `ERROR`; attributes hold bill fields (consumer, tariff, etc.).
+- **DUE DATE**, **READING DATE**, **ISSUE DATE** — text from CCMS when present.
+- **LAST BILLING MONTH** — latest history month; attributes hold full **entries** table.
+- **REMAINING UNITS** (kWh), **LAST BILLING MONTH COST** (PKR).
+- **CURRENT IMP(O)/IMP(P)/EXP(O)/EXP(P) UNITS** (kWh) for the bill month.
+- Eight **meter** sensors: **PREVIOUS/PRESENT** cumulative reads per register (IMP/EXP, O/P).
 
 Update interval defaults to **6 hours** (`const.py`).
 

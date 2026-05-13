@@ -46,6 +46,11 @@ def flatten_basic_info(bill_root: dict[str, Any]) -> dict[str, Any]:
         v = bi.get(src)
         if v is not None:
             out[key] = str(v)
+    for alt_key in ("issue_date", "issueDate"):
+        v = bi.get(alt_key)
+        if v is not None and str(v).strip() not in ("", "null"):
+            out["issue_date"] = str(v)
+            break
     return out
 
 
