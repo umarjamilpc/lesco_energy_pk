@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 _MONTH_ABBR = (
@@ -50,6 +50,74 @@ def format_bill_date_display(raw: str | None) -> str | None:
     return s.upper()
 
 
+def _parse_iso_date_prefix(s: str) -> datetime | None:
+    s = str(s).strip()
+    if len(s) >= 10 and s[4:5] == "-" and s[7:8] == "-":
+        try:
+            return datetime.strptime(s[:10], "%Y-%m-%d")
+        except ValueError:
+            return None
+    return None
+
+
+def parse_short_bill_date(s: str) -> datetime | None:
+    """Parse CCMS human dates like '14 APR 26' or '14 APR 2026'."""
+    parts = str(s).strip().upper().split()
+    if len(parts) < 3:
+        return None
+    day_s, mon_raw, yr_s = parts[0], parts[1], parts[2]
+    mon_abbr = mon_raw[:3]
+    try:
+        month_idx = _MONTH_ABBR.index(mon_abbr)
+    except ValueError:
+        return None
+    try:
+        day = int(day_s)
+    except ValueError:
+        return None
+    try:
+        yy = int(yr_s)
+    except ValueError:
+        return None
+    if yy >= 100:
+        year = yy
+    else:
+        year = 2000 + yy if yy < 80 else 1900 + yy
+    try:
+        return datetime(year, month_idx + 1, day)
+    except ValueError:
+        return None
+
+
+def resolve_issue_date_source(bill_root: dict[str, Any]) -> str | None:
+    """Issue date from CCMS, or estimate when API returns null (matches web bill PDF).
+
+    CCMS often omits basicInfo.issue_date; LESCO web bills show issue ≈ meter read + 7
+    calendar days, or bill due date − 8 days (verified on APR-26 sample).
+    """
+    bill = bill_root.get("bill")
+    if not isinstance(bill, dict):
+        return None
+    bi = bill.get("basicInfo")
+    if not isinstance(bi, dict):
+        return None
+    for alt in ("issue_date", "issueDate"):
+        v = bi.get(alt)
+        if v is not None and str(v).strip() and str(v).lower() not in ("null", "none"):
+            return str(v).strip()
+    mr = bi.get("meterReadDate")
+    if mr:
+        base = parse_short_bill_date(str(mr))
+        if base:
+            return (base + timedelta(days=7)).strftime("%Y-%m-%d")
+    bd = bi.get("billDueDate")
+    if bd:
+        due = _parse_iso_date_prefix(str(bd))
+        if due:
+            return (due + timedelta(days=-8)).strftime("%Y-%m-%d")
+    return None
+
+
 # Order matches LESCO web bill / metersInfo rows for net-meter domestic split.
 _METER_ROLES = (
     "import_offpeak",
@@ -91,11 +159,6 @@ def flatten_basic_info(bill_root: dict[str, Any]) -> dict[str, Any]:
         v = bi.get(src)
         if v is not None:
             out[key] = str(v)
-    for alt_key in ("issue_date", "issueDate"):
-        v = bi.get(alt_key)
-        if v is not None and str(v).strip() not in ("", "null"):
-            out["issue_date"] = str(v)
-            break
     return out
 
 

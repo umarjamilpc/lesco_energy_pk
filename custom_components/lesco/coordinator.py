@@ -16,6 +16,7 @@ from .bill_data import (
     format_bill_date_display,
     parse_billing_history,
     parse_meters_info,
+    resolve_issue_date_source,
 )
 from .const import CONF_REFERENCE, DEFAULT_UPDATE_INTERVAL, DOMAIN
 
@@ -65,10 +66,13 @@ class LescoCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             formatted = format_bill_date_display(bill_flat["bill_due_date"])
             if formatted:
                 bill_flat["bill_due_date"] = formatted
-        if "issue_date" in bill_flat:
-            formatted_issue = format_bill_date_display(bill_flat["issue_date"])
+        issue_src = resolve_issue_date_source(ccms_dict)
+        if issue_src:
+            formatted_issue = format_bill_date_display(issue_src)
             if formatted_issue:
                 bill_flat["issue_date"] = formatted_issue
+        else:
+            bill_flat.pop("issue_date", None)
         meters = parse_meters_info(ccms_dict)
         hist_rows = parse_billing_history(ccms_dict)
 
