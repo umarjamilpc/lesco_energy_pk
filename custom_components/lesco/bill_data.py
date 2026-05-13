@@ -50,9 +50,6 @@ def format_bill_date_display(raw: str | None) -> str | None:
     return s.upper()
 
 
-# Backwards-compatible name
-format_due_date_display = format_bill_date_display
-
 # Order matches LESCO web bill / metersInfo rows for net-meter domestic split.
 _METER_ROLES = (
     "import_offpeak",
