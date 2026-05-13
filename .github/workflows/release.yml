@@ -1,0 +1,25 @@
+# Publish a GitHub Release for each semver tag so HACS shows "v3.x.x" instead of commit SHA.
+# Tags alone are not enough — see https://hacs.dev/docs/publish/start (Versions)
+
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  github-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create GitHub Release from tag
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
